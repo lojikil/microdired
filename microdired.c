@@ -89,17 +89,18 @@ main(int ac, char **al, char **el) {
                             break;
                         }
 
-                        if(com.start != -1) {
-                            if(com.stop != -1) {
-                                if(tmp >= com.start && tmp <= com.stop) {
-                                    printf("%d\t%s\n", tmp, fp->d_name);
-                                }
-                            } else if(tmp == com.start) {
-                                printf("%d\t%s\n", tmp, fp->d_name);
-                            }
-                        } else {
+                        /* originally I was trying to make this a lot of simple
+                         * checks, but honestly this is so much easier to read
+                         */
+
+                        if(com.start == -1 && com.stop == -1) {
+                            printf("%d\t%s\n", tmp, fp->d_name);
+                        } else if(com.start != -1 && com.stop == -1 && tmp == com.start) {
+                            printf("%d\t%s\n", tmp, fp->d_name);
+                        } else if(tmp >= com.start && tmp <= com.stop) {
                             printf("%d\t%s\n", tmp, fp->d_name);
                         }
+
                     }
                     break;
                 case 'L':
@@ -113,17 +114,14 @@ main(int ac, char **al, char **el) {
                             break;
                         }
 
-                        if(com.start != -1) {
-                            if(com.stop != -1) {
-                                if(tmp >= com.start && tmp <= com.stop) {
-                                    printf("%s\n", fp->d_name);
-                                }
-                            } else if(tmp == com.start) {
-                                printf("%s\n", fp->d_name);
-                            }
-                        } else {
+                        if(com.start == -1 && com.stop == -1) {
+                            printf("%s\n", fp->d_name);
+                        } else if(com.start != -1 && com.stop == -1 && tmp == com.start) {
+                            printf("%s\n", fp->d_name);
+                        } else if(tmp >= com.start && tmp <= com.stop) {
                             printf("%s\n", fp->d_name);
                         }
+
                     }
                     break;
             }
