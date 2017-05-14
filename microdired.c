@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <limits.h>
 
 #define nil NULL
 #define nul '\0'
@@ -68,10 +69,9 @@ main(int ac, char **al, char **el) {
             printf("%s\n", curdir);
         } else {
             ret = parse(&com, &linebuf[0], 512);
-            printf("parse results: %d, %d, %c\n", com.start, com.stop, com.cmd);
-            if(com.glob_len > 0) {
-                printf("glob: %s\n", com.glob);
-            }
+
+            //printf("%d, %d, %c\n", com.start, com.stop, com.cmd);
+
             /* TODO neat idea:
              * - cache directory contents.
              * - create a "view" into the contents based on parsed command.
@@ -153,6 +153,9 @@ parse(Command *com, const char *buffer, int len) {
                 } else if(buffer[offset] >= '0' && buffer[offset] <= '9') {
                     start = buffer[offset] - 48;
                     state = 1;
+                } else if(buffer[offset] == '$') {
+                    start = INT_MAX;
+                    state = 1;
                 } else if(buffer[offset] == '(') {
                     state = 3;
                 } else {
@@ -161,7 +164,6 @@ parse(Command *com, const char *buffer, int len) {
                 offset++;
                 break;
             case 1:
-                printf("here?\n");
                 if(buffer[offset] >= '0' && buffer[offset] <= '9') {
                     start = (start * 10) + (buffer[offset] - 48);
                     offset++;
@@ -180,6 +182,10 @@ parse(Command *com, const char *buffer, int len) {
                 if(buffer[offset] >= '0' && buffer[offset] <= '9') {
                     stop = (stop * 10) + (buffer[offset] - 48);
                     offset++;
+                } else if(buffer[offset] == '$') {
+                    stop = INT_MAX;
+                    state = 0;
+                    offset++;
                 } else if(isalpha(buffer[offset])) {
                     state = 0;
                 } else if(buffer[offset] == '(') {
@@ -188,7 +194,6 @@ parse(Command *com, const char *buffer, int len) {
                 }
                 break;
             case 3:
-                printf("3here\n");
                 if(buffer[offset] == ')') {
                     state = 0;
                     com->glob[goffset] = nul;
