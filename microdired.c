@@ -278,4 +278,10 @@ cleancache(DirectoryBuffer *dirb) {
     }
 
     free(dirb->buffer);
+    /* I wonder if we should **actually** 
+     * do this; could refactor and reuse these
+     * objects more frequently... that
+     * actually might make more sense.
+     */
+    free(dirb);
 }
