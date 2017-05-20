@@ -116,6 +116,10 @@ main(int ac, char **al, char **el) {
                     }
                     break;
             }
+
+            if(view != curbuf) {
+                cleancache(view);
+            }
         }
 
     }
@@ -263,8 +267,40 @@ cachedirectory(char *directory) {
 }
 
 DirectoryBuffer *
-filtercache(Command *cmd, DirectoryBuffer* dirb) {
-    return dirb;
+filtercache(Command *com, DirectoryBuffer* dirb) {
+    int len = 0, end = 0, count = 0, start = 0;
+    DirectoryBuffer *ret = nil;
+
+    if(com->start == -1 && com->stop == -1) {
+        return dirb;
+    } else if(com->start != -1 && com->stop == -1) {
+
+        if(com->start > dirb->count) {
+            return nil;
+        }
+
+        ret = (DirectoryBuffer *)malloc(sizeof(DirectoryBuffer));
+        ret->count = 1;
+        ret->offsets = (int *)malloc(sizeof(int) * 1);
+        ret->offsets[0] = com->start;
+        ret->buffer = (char **)malloc(sizeof(char *));
+        ret->buffer[0] = strdup(dirb->buffer[com->start]);
+    } else {
+        ret = (DirectoryBuffer *)malloc(sizeof(DirectoryBuffer));
+        end = com->stop > dirb->count ? dirb->count : com->stop;
+        start = com->start;
+        ret->count = end - start;
+        count = ret->count;
+        ret->offsets = (int *)malloc(sizeof(int) * count);
+        ret->buffer = (char **)malloc(sizeof(char *) * count);
+
+        for(int idx = 0; idx < count; idx++) {
+            ret->offsets[idx] = idx + start;
+            ret->buffer[idx] = strdup(dirb->buffer[idx + start]);
+        }
+    }
+
+    return ret;
 }
 
 void
