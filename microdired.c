@@ -18,7 +18,32 @@ typedef struct _CMD {
     char arg[256];
 } Command;
 
+/* a simple directory buffer;
+ * since I am mainly using strings
+ * right now, just keep this as a simple
+ * list of strings and integers. The 
+ * integer is the offset of the original;
+ * if it is nil, then the offset == 
+ * the index in the buffer. Why do this?
+ * because I want to reuse the same buffer
+ * interface for all transactions, which means
+ * sometimes we have to have that information
+ * available. For example, if we enter the 
+ * command:
+ * > 7,13([A-Z]?.txt)l
+ * we want to know _which_ lines matched
+ * the glob, not just that there *are* 
+ * lines that match the glob.
+ */
+typedef struct _DIRBUF {
+    size_t buffercount;
+    int *offsets;
+    char **buffer;
+} DirectoryBuffer;
+
 int parse(Command *, const char *, int);
+DirectoryBuffer *cachedirectory(char *);
+DirectoryBuffer *filtercache(Command *, DirectoryBuffer *);
 
 int
 main(int ac, char **al, char **el) {
@@ -209,4 +234,14 @@ parse(Command *com, const char *buffer, int len) {
         }
     }
     return 0;
+}
+
+DirectoryBuffer *
+cachedirectory(char *directory) {
+
+}
+
+DirectoryBuffer *
+filtercache(Command *cmd, DirectoryBuffer* dirb) {
+
 }
