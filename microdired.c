@@ -36,7 +36,7 @@ typedef struct _CMD {
  * lines that match the glob.
  */
 typedef struct _DIRBUF {
-    size_t buffercount;
+    size_t count;
     int *offsets;
     char **buffer;
 } DirectoryBuffer;
@@ -44,20 +44,20 @@ typedef struct _DIRBUF {
 int parse(Command *, const char *, int);
 DirectoryBuffer *cachedirectory(char *);
 DirectoryBuffer *filtercache(Command *, DirectoryBuffer *);
+void cleancache(DirectoryBuffer *);
 
 int
 main(int ac, char **al, char **el) {
-    DIR *cwd = nil;
-    struct dirent *fp = nil;
+    DirectoryBuffer *curbuf = nil, *view = nil;
     int dot = 0, len = 0, tmp = 0, ret = 0;
     char prompt[32] = {'>', ' ', nul}, linebuf[512] = {0}, curdir[512] = {0};
     const char *editor = getenv("EDITOR"), *home = getenv("HOME");
     Command com;
 
-    cwd = opendir(".");
     (void)getcwd(curdir, 512);
+    curbuf = cachedirectory(curdir);
 
-    if(cwd == nil) {
+    if(curbuf == nil) {
         printf("Cannot open current directory!\n");
         return 1;
     }
@@ -78,83 +78,49 @@ main(int ac, char **al, char **el) {
         if(!strncmp(linebuf, "q", 512)) {
             break;
         } else if(!strncmp(linebuf, "~", 512)) {
-            (void)closedir(cwd);
-            cwd = opendir(home);
             strlcpy(curdir, home, 512);
+            cleancache(curbuf);
+            curbuf = cachedirectory(curdir);
         } else if(linebuf[0] == '/') {
-            DIR *dtmp = opendir(linebuf);
+            DirectoryBuffer *dtmp = cachedirectory(linebuf);
+
             if(dtmp == nil) {
                 printf("cannot open directory: %s\n", linebuf);
             } else {
-                (void)closedir(cwd);
-                cwd = dtmp;
+                cleancache(curbuf);
+                curbuf = dtmp;
                 strlcpy(curdir, linebuf, 512);
             }
         } else if(!strncmp(linebuf, ".", 512)) {
             printf("%s\n", curdir);
         } else {
             ret = parse(&com, &linebuf[0], 512);
+            view = filtercache(&com, curbuf);
 
-            //printf("%d, %d, %c\n", com.start, com.stop, com.cmd);
-
-            /* TODO neat idea:
-             * - cache directory contents.
-             * - create a "view" into the contents based on parsed command.
-             * - call functions with this view.
-             */
             switch(com.cmd) {
                 case 'l':
-                    if(cwd != nil) {
-                        rewinddir(cwd);
-                    }
 
-                    for(tmp = 0; ; tmp ++) {
-                        fp = readdir(cwd);
-                        if(fp == nil) {
-                            break;
+                    for(tmp = 0; tmp < view->count ; tmp++) {
+                        if(view->offsets != nil) {
+                            printf("%d\t%s\n", view->offsets[tmp], view->buffer[tmp]);
+                        } else {
+                            printf("%d\t%s\n", tmp, view->buffer[tmp]);
                         }
-
-                        /* originally I was trying to make this a lot of simple
-                         * checks, but honestly this is so much easier to read
-                         */
-
-                        if(com.start == -1 && com.stop == -1) {
-                            printf("%d\t%s\n", tmp, fp->d_name);
-                        } else if(com.start != -1 && com.stop == -1 && tmp == com.start) {
-                            printf("%d\t%s\n", tmp, fp->d_name);
-                        } else if(tmp >= com.start && tmp <= com.stop) {
-                            printf("%d\t%s\n", tmp, fp->d_name);
-                        }
-
                     }
                     break;
+
                 case 'L':
-                    if(cwd != nil) {
-                        rewinddir(cwd);
-                    }
 
-                    for(tmp = 0; ; tmp ++) {
-                        fp = readdir(cwd);
-                        if(fp == nil) {
-                            break;
-                        }
-
-                        if(com.start == -1 && com.stop == -1) {
-                            printf("%s\n", fp->d_name);
-                        } else if(com.start != -1 && com.stop == -1 && tmp == com.start) {
-                            printf("%s\n", fp->d_name);
-                        } else if(tmp >= com.start && tmp <= com.stop) {
-                            printf("%s\n", fp->d_name);
-                        }
-
+                    for(tmp = 0; tmp < view->count ; tmp++) {
+                        printf("%s\n", view->buffer[tmp]);
                     }
                     break;
             }
         }
 
     }
-
-    closedir(cwd);
+    
+    cleancache(curbuf);
     return 0;
 }
 
@@ -238,10 +204,78 @@ parse(Command *com, const char *buffer, int len) {
 
 DirectoryBuffer *
 cachedirectory(char *directory) {
+    DIR *dtmp = opendir(directory);
+    DirectoryBuffer *ret = nil;
+    char **newstack = nil;
+    struct dirent *fp = nil;
+    size_t count = 0;
+    
+    if(dtmp == nil) {
+        return nil;
+    }
 
+    /* this is a *really* funny way 
+     * of avoiding complex allocations
+     * buuuuuuut... we can avoid or 
+     * elide doing a ton of allocations
+     * for some sort of stack by reading
+     * the directory *twice*. Probably
+     * should look at the impact of that
+     */
+    while(1) {
+        fp = readdir(dtmp);
+
+        if(fp == nil) {
+            break;
+        }
+
+        count += 1;
+    }
+
+    rewinddir(dtmp);
+    newstack = (char **)malloc(sizeof(char *) * count);
+
+    for(int idx = 0; idx < count; idx++) {
+        fp = readdir(dtmp);
+
+        /* technically, something else could
+         * have removed a file or the like
+         * from this directory; avoid a 
+         * TOCTOU bug here by not assuming
+         * that the count above == count now.
+         * We, of course, run ths risk that
+         * we miss a new file now. That's the
+         * idea with recaching ever N operations
+         * as well too.
+         */
+        if(fp == nil) {
+            break;
+        }
+
+        newstack[idx] = strdup(fp->d_name);
+    }
+    closedir(dtmp);
+    ret = (DirectoryBuffer *)malloc(sizeof(DirectoryBuffer));
+    ret->count = count;
+    ret->offsets = nil;
+    ret->buffer = newstack;
+    return ret;
 }
 
 DirectoryBuffer *
 filtercache(Command *cmd, DirectoryBuffer* dirb) {
+    return dirb;
+}
 
+void
+cleancache(DirectoryBuffer *dirb) {
+    if(dirb->offsets != nil) {
+        free(dirb->offsets);
+    }
+
+    for(size_t idx = 0; idx < dirb->count; idx++) {
+        free(dirb->buffer[idx]);
+    }
+
+    free(dirb->buffer);
 }
