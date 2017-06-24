@@ -163,6 +163,13 @@ main(int ac, char **al, char **el) {
                     } else {
                         fclose(fp);
                         fp = nil;
+                        if(view != curbuf) {
+                            cleancache(view);
+                        }
+                        dtmp = cachedirectory(curdir);
+                        cleancache(curbuf);
+                        curbuf = dtmp;
+                        view = dtmp;
                     }
                     break;
 
