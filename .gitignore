@@ -1,3 +1,4 @@
 *.swp
 microdired
 *.o
+microdired.dSYM/*

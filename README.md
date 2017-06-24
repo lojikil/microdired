@@ -18,10 +18,28 @@ but I have not gotten there just yet.
 
 The language that this `ed(1)`-alike parser consumes is as follows:
 
-`n,m{glob}cmd arg0 arg1 ... argN`
+`n,m(glob)cmd arg0 arg1 ... argN`
 
 - `n,m`: a start line, and optional completion line
-- `{glob}`: a Unix-shell `glob`-alike
+- `(glob)`: a Unix-shell `glob`-alike
 - `cmd`: an actual command, like `l` or `def`
 - `argN`: character string arguments
 
+# Commands:
+
+- `.`: print the current working directory
+- `..`: go up to the parent directory
+- `/somedirectory`: go to `/somedirectory`
+- `l`/`L`: print directory with or without entry numbers
+- `p`/`P`: pretty print directory with or without entry numbers
+- `c`/`C`: create a file/directory
+- `f`: print only files
+- `F`: pretty print only files
+- `d`: print only directories
+- `D`: pretty print only directories
+- `e`: invoke `$EDITOR`, falling back on internal `ed(1)`
+- `E`: invoke internal `ed(1)`
+- `m`: `more`, but built in
+- `M`: mode, as in `chmod`
+- `t`: `test`-like interface
+- `!`: execute a unix shell

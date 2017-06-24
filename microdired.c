@@ -5,10 +5,18 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <limits.h>
+#include <sys/stat.h>
 
 #define nil NULL
 #define nul '\0'
 
+#define debugprnt printf("here? %d\n", __LINE__)
+
+/* next step would be to
+ * make the cmd into a
+ * char *, so that we can
+ * have longer command names.
+ */
 typedef struct _CMD {
     char cmd;
     int start;
@@ -52,6 +60,7 @@ main(int ac, char **al, char **el) {
     int dot = 0, len = 0, tmp = 0, ret = 0;
     char prompt[32] = {'>', ' ', nul}, linebuf[512] = {0}, curdir[512] = {0};
     const char *editor = getenv("EDITOR"), *home = getenv("HOME");
+    FILE *fp = nil;
     Command com;
 
     (void)getcwd(curdir, 512);
@@ -111,7 +120,7 @@ main(int ac, char **al, char **el) {
 
             switch(com.cmd) {
                 case 'l':
-
+                    // list directory with numbers
                     for(tmp = 0; tmp < view->count ; tmp++) {
                         if(view->offsets != nil) {
                             printf("%d\t%s\n", view->offsets[tmp], view->buffer[tmp]);
@@ -122,10 +131,92 @@ main(int ac, char **al, char **el) {
                     break;
 
                 case 'L':
-
+                    // list directory sans numbers
                     for(tmp = 0; tmp < view->count ; tmp++) {
                         printf("%s\n", view->buffer[tmp]);
                     }
+                    break;
+
+                case 'p':
+                    // pretty print
+                    for(tmp = 0; tmp < view->count; tmp++) {
+                        if(view->offsets != nil) {
+                            printf("%d\t%s\n", view->offsets[tmp], view->buffer[tmp]);
+                        } else {
+                            printf("%d\t%s\n", tmp, view->buffer[tmp]);
+                        }
+                    } 
+                    break;
+
+                case 'P':
+                    // pretty print sans numbers
+                    for(tmp = 0; tmp < view->count ; tmp++) {
+                        printf("%s\n", view->buffer[tmp]);
+                    }
+                    break;
+                
+                case 'c': // create a file
+
+                    fp = fopen(com.arg, "w");
+                    if(fp == nil) {
+                        printf("could not create file \"%s\"\n", com.arg);
+                    } else {
+                        fclose(fp);
+                        fp = nil;
+                    }
+                    break;
+
+                case 'C': // create a directory
+
+                    tmp = mkdir(com.arg, 0700);
+                    if(tmp == -1) {
+                        printf("could not create directory \"%s\"\n", com.arg);
+                    } else {
+                        debugprnt;
+                        if(view != curbuf) {
+                            cleancache(view);
+                        }
+                        debugprnt;
+                        printf("%s\n", curbuf == nil ? "yes" : "no");
+                        dtmp = cachedirectory(curdir);
+                        cleancache(curbuf);
+                        debugprnt;
+                        curbuf = dtmp;
+                    }
+                    break;
+
+                case 'f': // only print files
+                    break;
+
+                case 'F': // pretty print only files
+                    break;
+
+                case 'd': // only print directories
+                    break;
+
+                case 'D': // pretty print only directories
+                    break;
+
+                case '!': // execute a shell command w/ args
+                    break;
+
+                case 'e': // invoke $EDITOR on arguments
+                    break;
+
+                case 'E': // ignore $EDITOR, invoke built-in ed(1)
+                    break;
+
+                case 't': // test/[-like interface
+                    break;
+
+                case 'm': // more, like the pager
+                    break;
+
+                case 'M': // mode, like chmod
+                    break;
+
+                default:
+                    printf("?\n");
                     break;
             }
 
@@ -153,7 +244,8 @@ parse(Command *com, const char *buffer, int len) {
                     com->start = start;
                     com->stop = stop;
                     com->cmd = buffer[offset];
-                    strlcpy(com->arg, &buffer[offset + 1], 256);
+                    // +2, so as to skip the ' '
+                    strlcpy(com->arg, &buffer[offset + 2], 256);
                     return 0;
                 } else if(buffer[offset] >= '0' && buffer[offset] <= '9') {
                     start = buffer[offset] - 48;
@@ -317,19 +409,26 @@ filtercache(Command *com, DirectoryBuffer* dirb) {
 
 void
 cleancache(DirectoryBuffer *dirb) {
+    debugprnt;
     if(dirb->offsets != nil) {
         free(dirb->offsets);
     }
-
+    debugprnt;
     for(size_t idx = 0; idx < dirb->count; idx++) {
-        free(dirb->buffer[idx]);
+        printf("freeing \"%s\"(%p)\n", dirb->buffer[idx], &dirb->buffer[idx]);
+        if(dirb->buffer[idx] != nil) {
+            free(dirb->buffer[idx]);
+        }
     }
-
+    debugprnt;
     free(dirb->buffer);
+    debugprnt;
     /* I wonder if we should **actually** 
      * do this; could refactor and reuse these
      * objects more frequently... that
      * actually might make more sense.
      */
+    debugprnt;
     free(dirb);
+    debugprnt;
 }
