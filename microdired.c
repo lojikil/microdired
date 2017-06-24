@@ -48,7 +48,7 @@ void cleancache(DirectoryBuffer *);
 
 int
 main(int ac, char **al, char **el) {
-    DirectoryBuffer *curbuf = nil, *view = nil;
+    DirectoryBuffer *curbuf = nil, *view = nil, *dtmp = nil;
     int dot = 0, len = 0, tmp = 0, ret = 0;
     char prompt[32] = {'>', ' ', nul}, linebuf[512] = {0}, curdir[512] = {0};
     const char *editor = getenv("EDITOR"), *home = getenv("HOME");
@@ -82,7 +82,7 @@ main(int ac, char **al, char **el) {
             cleancache(curbuf);
             curbuf = cachedirectory(curdir);
         } else if(linebuf[0] == '/') {
-            DirectoryBuffer *dtmp = cachedirectory(linebuf);
+            dtmp = cachedirectory(linebuf);
 
             if(dtmp == nil) {
                 printf("cannot open directory: %s\n", linebuf);
@@ -93,6 +93,18 @@ main(int ac, char **al, char **el) {
             }
         } else if(!strncmp(linebuf, ".", 512)) {
             printf("%s\n", curdir);
+        } else if(!strncmp(linebuf, "..", 512)) {
+            char *tmp = strrchr(curdir, '/');
+            if(tmp != nil) {
+                tmp[0] = nul;
+                dtmp = cachedirectory(curdir);
+                if(dtmp == nil) {
+                    printf("cannot open directory %s\n", curdir);
+                } else {
+                    cleancache(curbuf);
+                    curbuf = dtmp;
+                }
+            }
         } else {
             ret = parse(&com, &linebuf[0], 512);
             view = filtercache(&com, curbuf);
