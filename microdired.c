@@ -172,16 +172,13 @@ main(int ac, char **al, char **el) {
                     if(tmp == -1) {
                         printf("could not create directory \"%s\"\n", com.arg);
                     } else {
-                        debugprnt;
                         if(view != curbuf) {
                             cleancache(view);
                         }
-                        debugprnt;
-                        printf("%s\n", curbuf == nil ? "yes" : "no");
                         dtmp = cachedirectory(curdir);
                         cleancache(curbuf);
-                        debugprnt;
                         curbuf = dtmp;
+                        view = dtmp;
                     }
                     break;
 
@@ -409,26 +406,23 @@ filtercache(Command *com, DirectoryBuffer* dirb) {
 
 void
 cleancache(DirectoryBuffer *dirb) {
-    debugprnt;
+
     if(dirb->offsets != nil) {
         free(dirb->offsets);
     }
-    debugprnt;
+
     for(size_t idx = 0; idx < dirb->count; idx++) {
-        printf("freeing \"%s\"(%p)\n", dirb->buffer[idx], &dirb->buffer[idx]);
         if(dirb->buffer[idx] != nil) {
             free(dirb->buffer[idx]);
         }
     }
-    debugprnt;
+
     free(dirb->buffer);
-    debugprnt;
+
     /* I wonder if we should **actually** 
      * do this; could refactor and reuse these
      * objects more frequently... that
      * actually might make more sense.
      */
-    debugprnt;
     free(dirb);
-    debugprnt;
 }
