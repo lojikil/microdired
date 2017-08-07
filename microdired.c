@@ -47,6 +47,7 @@ typedef struct _DIRBUF {
     size_t count;
     int *offsets;
     char **buffer;
+    struct stat **stats;
 } DirectoryBuffer;
 
 int parse(Command *, const char *, int);
@@ -319,6 +320,7 @@ cachedirectory(char *directory) {
     DIR *dtmp = opendir(directory);
     DirectoryBuffer *ret = nil;
     char **newstack = nil;
+    struct stat **stats = nil;
     struct dirent *fp = nil;
     size_t count = 0;
     
@@ -346,6 +348,7 @@ cachedirectory(char *directory) {
 
     rewinddir(dtmp);
     newstack = (char **)malloc(sizeof(char *) * count);
+    stats = (struct stat **)malloc(sizeof(struct stat *) * count);
 
     for(int idx = 0; idx < count; idx++) {
         fp = readdir(dtmp);
