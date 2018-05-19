@@ -45,6 +45,7 @@ typedef struct _CMD {
  */
 typedef struct _DIRBUF {
     size_t count;
+    uint8_t *types;
     int *offsets;
     char **buffer;
     struct stat **stats;
@@ -191,12 +192,22 @@ main(int ac, char **al, char **el) {
                     break;
 
                 case 'f': // only print files
+                    for(tmp = 0; tmp < view->count ; tmp++) {
+                        if(view->types[tmp] != 0x04) {
+                            printf("%s\n", view->buffer[tmp]);
+                        }
+                    }
                     break;
 
                 case 'F': // pretty print only files
                     break;
 
                 case 'd': // only print directories
+                    for(tmp = 0; tmp < view->count ; tmp++) {
+                        if(view->types[tmp] == 0x04) {
+                            printf("%s\n", view->buffer[tmp]);
+                        }
+                    }
                     break;
 
                 case 'D': // pretty print only directories
@@ -322,6 +333,7 @@ cachedirectory(char *directory) {
     char **newstack = nil;
     struct stat **stats = nil;
     struct dirent *fp = nil;
+    uint8_t *types = nil;
     size_t count = 0;
     
     if(dtmp == nil) {
@@ -349,6 +361,7 @@ cachedirectory(char *directory) {
     rewinddir(dtmp);
     newstack = (char **)malloc(sizeof(char *) * count);
     stats = (struct stat **)malloc(sizeof(struct stat *) * count);
+    types = (uint8_t *)malloc(sizeof(uint8_t) * count);
 
     for(int idx = 0; idx < count; idx++) {
         fp = readdir(dtmp);
@@ -368,12 +381,14 @@ cachedirectory(char *directory) {
         }
 
         newstack[idx] = strdup(fp->d_name);
+        types[idx] = fp->d_type;
     }
     closedir(dtmp);
     ret = (DirectoryBuffer *)malloc(sizeof(DirectoryBuffer));
     ret->count = count;
     ret->offsets = nil;
     ret->buffer = newstack;
+    ret->types = types;
     return ret;
 }
 
@@ -392,6 +407,8 @@ filtercache(Command *com, DirectoryBuffer* dirb) {
 
         ret = (DirectoryBuffer *)malloc(sizeof(DirectoryBuffer));
         ret->count = 1;
+        ret->types = (uint8_t *)malloc(sizeof(uint8_t));
+        ret->types[0] = dirb->types[com->start];
         ret->offsets = (int *)malloc(sizeof(int) * 1);
         ret->offsets[0] = com->start;
         ret->buffer = (char **)malloc(sizeof(char *));
@@ -402,10 +419,12 @@ filtercache(Command *com, DirectoryBuffer* dirb) {
         start = com->start;
         ret->count = end - start;
         count = ret->count;
+        ret->types = (uint8_t *)malloc(sizeof(uint8_t) * count);
         ret->offsets = (int *)malloc(sizeof(int) * count);
         ret->buffer = (char **)malloc(sizeof(char *) * count);
 
         for(int idx = 0; idx < count; idx++) {
+            ret->types[idx] = dirb->types[idx + start];
             ret->offsets[idx] = idx + start;
             ret->buffer[idx] = strdup(dirb->buffer[idx + start]);
         }
@@ -428,6 +447,8 @@ cleancache(DirectoryBuffer *dirb) {
     }
 
     free(dirb->buffer);
+    free(dirb->stats);
+    free(dirb->types);
 
     /* I wonder if we should **actually** 
      * do this; could refactor and reuse these
