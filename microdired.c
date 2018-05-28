@@ -143,9 +143,33 @@ main(int ac, char **al, char **el) {
                     // pretty print
                     for(tmp = 0; tmp < view->count; tmp++) {
                         if(view->offsets != nil) {
-                            printf("%d\t%s\n", view->offsets[tmp], view->buffer[tmp]);
+                            printf("%d\t%s", view->offsets[tmp], view->buffer[tmp]);
                         } else {
-                            printf("%d\t%s\n", tmp, view->buffer[tmp]);
+                            printf("%d\t%s", tmp, view->buffer[tmp]);
+                        }
+
+                        // we have both the DIR types as well as
+                        // the stat structures, so really could
+                        // also detect executable type here...
+                        switch(view->types[tmp]) {
+                            case DT_FIFO:
+                                printf("|\n");
+                                break;
+                            case DT_DIR:
+                                printf("/\n");
+                                break;
+                            case DT_LNK:
+                                printf("@\n");
+                                break;
+                            case DT_SOCK:
+                                printf("=\n");
+                                break;
+                            case DT_WHT:
+                                printf("%%\n");
+                                break;
+                            default:
+                                printf("\n");
+                                break;
                         }
                     } 
                     break;
